@@ -51,6 +51,7 @@ int main() {
 
 		solve(0, N, 0, N);
 		cout << '\n';
+		
 		fill(preorder, preorder + 1000, 0);
 		fill(inorder, inorder + 1000, 0);
 	}
