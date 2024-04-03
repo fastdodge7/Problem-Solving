@@ -6,20 +6,9 @@
 
 using namespace std;
 
-typedef struct balloon{
-    int height;
-    int pos;
-
-    bool operator<(const balloon& other) const {
-        if(height == other.height)
-            return pos < other.pos;
-        return height > other.height; 
-    }
-}balloon;
-
 int N;
-vector<balloon> arr;
-queue<balloon> Q;
+int ans = 0;
+int arr[1000001]; // arr[i] 높이 i를 지나가는 화살의 수
 
 int main(int argc, char* argv[])
 {
@@ -28,37 +17,21 @@ int main(int argc, char* argv[])
     cout.tie(0);
 
     cin >> N;
-    for(int i = 0; i < N; i++)
+    for(int i = 1; i <= N; i++)
     {
         int a; cin >> a;
-        arr.push_back({a, i});
+        if(arr[a] == 0)
+        {
+            ans++;
+            arr[a - 1]++;
+        }
+        else
+        {
+            arr[a]--;
+            arr[a - 1]++;
+        }
     }
 
-    sort(arr.begin(), arr.end());
-
-    int ans = 0;
-    for(int i = 0; i < N; i++)
-    {
-        while(!Q.empty() && !(Q.front().height == arr[i].height || Q.front().height == arr[i].height + 1))
-            Q.pop();
-
-        if(Q.empty() || arr[i].height == Q.front().height)
-        {
-            Q.push(arr[i]);
-            ans++;
-            continue;
-        }
-
-        if(Q.front().pos > arr[i].pos)
-        {
-            Q.push(arr[i]);
-            ans++;
-            continue;
-        }
-
-        Q.pop();
-        Q.push(arr[i]);
-    }
     cout << ans;
     return 0;
 }
