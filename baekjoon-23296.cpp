@@ -2,6 +2,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <cassert>
 
 using namespace std;
 
@@ -23,6 +24,18 @@ vector<int> board[4][4];
 int bloodBoard[4][4];
 vector<int> buffer[4][4];
 
+void printBoard()
+{
+	for(int i = 0; i < 4; i++)
+	{
+		for(int j = 0; j < 4; j++)
+		{
+			cout << board[i][j].size() << ' ';
+		}
+		cout << '\n';
+	}
+}
+
 void fillSharkMove()
 {
 	for(int i = 1; i <= 4; i++)
@@ -40,18 +53,153 @@ void fillSharkMove()
 	}
 }
 
+bool canMoveFish(int nr, int nc)
+{
+	if(nr < 0 || nr >= 4 || nc < 0 || nc >= 4) // 격자를 벗어남
+		return false;
+	if(bloodBoard[nr][nc] > 0) // 물고기 냄새가 남아있음
+		return false;
+	if(nr == SharkR && nc == SharkC) // 상어가 있음
+		return false;
+	
+	return true;
+}
+
 int findNextDir(int r, int c, int cur)
 {
 	for(int offset = 0; offset < 8; offset++)
 	{
 		int nr = r + dy[(cur - offset + 8) % 8];
 		int nc = c + dx[(cur - offset + 8) % 8];
-		if(nr < 0 || nr >= 4 || nc < 0 || nc >= 4) continue;
-		if((bloodBoard[nr][nc] > 0)) continue;
-		if(nr == SharkR && nc == SharkC) continue;
-		return (cur - offset + 8) % 8;
+		if(canMoveFish(nr, nc))
+			return (cur - offset + 8) % 8;
 	}
 	return -1;
+}
+
+void castCopy()
+{
+	for(int i = 0; i < 4; i++) // 버퍼에 현 상태 복제.
+	{
+		for(int j = 0; j < 4; j++)
+		{
+			
+			buffer[i][j] = vector<int>(board[i][j]);
+			board[i][j].clear();
+
+		}
+	}
+}
+
+void moveFish()
+{
+	for(int i = 0; i < 4; i++) 
+	{
+		for(int j = 0; j < 4; j++)
+		{
+			for(int idx = 0; idx < buffer[i][j].size(); idx++)
+			{
+				int direction = findNextDir(i, j, buffer[i][j][idx]);
+				if(direction == -1) // 움직일 수 없는 경우
+				{
+					board[i][j].push_back(buffer[i][j][idx]);
+				}
+				else
+				{
+
+					board[i + dy[direction]][j + dx[direction]].push_back(direction);
+				}
+			}
+		}
+	}
+}
+
+int countRouteFish(const string& route) //범인1
+{
+	vector<pair<int, int>> visited;
+
+	int r = SharkR;
+	int c = SharkC;
+	int ret = 0;
+	for(char dir : route)
+	{
+		r = r + sdy[dir - '0'];
+		c = c + sdx[dir - '0'];
+		//cout << "(" << r << ", " << c <<")\n";
+		if(r < 0 || r >= 4 || c < 0 || c >= 4)
+		{
+			return -1;
+		}
+
+
+		ret += board[r][c].size();
+		for(const auto& history : visited)
+		{
+			if(history == make_pair(r, c))
+			{
+				ret -= board[r][c].size();
+				break;
+			}
+		}
+		visited.push_back({r, c});
+	}
+	return ret;
+}
+
+string findOptimalSharkMove()
+{
+	string ret = "";
+	int cnt = -1;
+	for(int i = 0; i < sharkMove.size(); i++)
+	{
+		int temp = countRouteFish(sharkMove[i]);
+		if(cnt < temp)
+		{
+			//cout << "Cand Route : " << sharkMove[i] << " / CNT : " << temp << '\n';
+			ret = sharkMove[i];
+			cnt = temp;
+		}
+	}
+	
+	//cout << "Optimal Route : " << ret << " / CNT : " << cnt << '\n';
+	assert(ret.size() == 3);
+	return ret;
+}
+
+void moveShark()
+{
+	string route = findOptimalSharkMove();
+	for(char dir : route)
+	{
+		SharkR += sdy[dir - '0'];
+		SharkC += sdx[dir - '0'];
+
+		if(board[SharkR][SharkC].size() > 0)
+		{
+			bloodBoard[SharkR][SharkC] = 3;
+		}
+		board[SharkR][SharkC].clear();
+	}
+}
+
+void removeBlood()
+{
+	for(int i = 0; i < 4; i++) for(int j = 0; j < 4; j++)
+	{
+		if(bloodBoard[i][j] > 0)
+			bloodBoard[i][j]--;
+	}
+}
+
+void pasteFish()
+{
+	for(int i = 0; i < 4; i++) for(int j = 0; j < 4; j++)
+	{
+		for(int idx = 0; idx < buffer[i][j].size(); idx++)
+		{
+			board[i][j].push_back(buffer[i][j][idx]);
+		}
+	}
 }
  
 
@@ -61,133 +209,33 @@ int main() {
 
 	fillSharkMove();
 
-	for(int i = 0; i < 4; i++) for(int j = 0; j < 4; j++)
-	{
-		board[i][j] = {};
-	}
-
 	cin >> M >> S;
 	for(int i = 0; i < M; i++)
 	{
-		int r, c, dir; cin >> r >> c >> dir;
+		int r, c, dir;
+		cin >>r >> c >> dir;
 		board[r - 1][c - 1].push_back(dir - 1);
 	}
-
 	cin >> SharkR >> SharkC;
 	SharkR--; SharkC--;
 
-	for(int i = 0; i < S; i++)
+	for(int phase = 1; phase <= S; phase++)
 	{
-		// 물고기 복제 마법
-		for(int j = 0; j < 4; j++)
-		{
-			for(int k = 0; k < 4; k++)
-				buffer[j][k] = vector<int>(board[j][k]);
-		}
-
-		// 물고기 이동.
-		for(int r = 0; r < 4; r++)
-		{
-			for(int c = 0; c < 4; c++)
-				board[r][c].clear();
-		}
-		for(int r = 0; r < 4; r++)
-		{
-			for(int c = 0; c < 4; c++)
-			{
-				for(int idx = 0; idx < buffer[r][c].size(); idx++)
-				{
-					int temp = findNextDir(r, c, buffer[r][c][idx]);
-					if(temp == -1) 
-						continue;
-					int nr = r + dy[temp];
-					int nc = c + dx[temp];
-					board[nr][nc].push_back(temp);
-				}
-			}
-		}
-
-		// 상어 이동
-		int move = -1;
-		int cnt = -1;
-		for(int moveIdx = 0; moveIdx < sharkMove.size(); moveIdx++)
-		{
-			int temp = 0;
-			int cr = SharkR;
-			int cc = SharkC;
-
-			bool captured[4][4];
-			fill(&captured[0][0], &captured[3][3] + 1, false);
-
-			for(int step = 0; step < 3; step++) // 쳐먹었던거 또쳐먹네
-			{
-				cr += sdy[sharkMove[moveIdx][step] - '0'];
-				cc += sdx[sharkMove[moveIdx][step] - '0'];
-				if(cr < 0 || cr >= 4 || cc < 0 || cc >= 4)
-				{
-					break;
-				}
-				if(!captured[cr][cc])
-					temp += board[cr][cc].size();
-				captured[cr][cc] = true;
-			}
-			
-			if(cr < 0 || cr >= 4 || cc < 0 || cc >= 4)
-			{
-				continue;
-			}
-			if(temp > cnt)
-			{
-				cnt = temp;
-				move = moveIdx;
-			}
-		}
-		cout << "상어 루트 : " << sharkMove[move] << '\n';
-		for(int step = 0; step < 3; step++)
-		{
-			SharkR += sdy[sharkMove[move][step] - '0'];
-			SharkC += sdx[sharkMove[move][step] - '0'];
-
-			if(!board[SharkR][SharkC].empty())
-			{
-				board[SharkR][SharkC].clear();
-				bloodBoard[SharkR][SharkC] = 3;
-			}
-		}
-
-		// 냄새 관리
-		for(int r = 0; r < 4; r++)
-		{
-			for(int c = 0; c < 4; c++)
-			{
-
-				if(bloodBoard[r][c] > 0)
-					bloodBoard[r][c]--;
-
-			}
-		}
-
-		//복제 완료
-		for(int r = 0; r < 4; r++)
-		{
-			for(int c = 0; c < 4; c++)
-			{
-				for(int idx = 0; idx < buffer[r][c].size(); idx++)
-				{
-					if(buffer[r][c][idx] < 0) continue;
-					board[r][c].push_back(buffer[r][c][idx]);
-				}
-			}
-		}
+		castCopy();
+		moveFish();
+		//printBoard();
+		moveShark();
+		removeBlood();
+		pasteFish();
 	}
 
 	int ans = 0;
 	for(int i = 0; i < 4; i++) for(int j = 0; j < 4; j++)
 	{
-		
 		ans += (int)board[i][j].size();
 	}
-	
+
 	cout << ans;
+	
 	return 0;
 }
