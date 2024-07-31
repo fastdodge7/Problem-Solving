@@ -12,8 +12,7 @@ constexpr int dy[4] = {0, -1, 0, 1};
 constexpr int dx[4] = {-1, 0, 1, 0};
 
 typedef struct Node{
-    int r;
-    int c;
+    int r, c;
     int lastDirection;
     int bits;
     int dist;
@@ -44,14 +43,10 @@ int BFS()
 
             int nextBits = curBits;
             if(board[nr][nc] == '0' || board[nr][nc] == '1')
-            {
-                nextBits = (nextBits | (1 << (((int)board[nr][nc]) - ((int)'0'))));
-            }
+                nextBits = nextBits | (1 << (board[nr][nc] - '0'));
 
             if(nextBits == 3)
-            {
                 return curDist + 1;
-            }
 
             if(visited[nr][nc][nextDir][nextBits]) continue;
 
@@ -73,7 +68,6 @@ int main(int argc, char* argv[])
     for(int i = 0; i < N; i++)
         cin >> board[i];
 
-
     int destinationCnt = 0;
     for(int i = 0; i < N; i++)
     {
@@ -90,6 +84,5 @@ int main(int argc, char* argv[])
     }
 
     cout << BFS() << '\n';
-
     return 0;
 }
